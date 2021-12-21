@@ -103,6 +103,7 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
     for i in range(k):
         # Sets up the centroids based on the data
         centroids[i] = X[i]
+        st.write(f"centroids: {centroids[i]}")
 
     # Outputs the recalculated clusters and centroids 
     st.subheader('first and last iteration plot')
@@ -122,7 +123,7 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
     st.subheader("Classes")
     st.write(df['Hrabstwo'].value_counts()) 
 
-    st.header("Dane")
+    st.header("Results")
     
     # st.write(df)
     new_df = pd.DataFrame()
@@ -134,23 +135,28 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
         
         new_df = pd.concat([new_df, df_with_cluster], axis=0)
         new_df.reset_index(drop=True)
-
-    # st.write(list(df.columns.values))
-    # st.write(list(new_df.columns.values))
-    # st.write(df)
     
-    df_with_info = pd.merge(df, new_df,  how='left', left_on=['Aktyw','Przych'], right_on = [0,1])
-    st.write(df_with_info)
-    df_info = df_with_info[["Hrabstwo","cluster"]]
-    st.write(df_info)
+    df_to_join_1 = df.sort_values(by=['Aktyw', 'Przych']).reset_index(drop=True)
+    df_to_join_2 = new_df.sort_values(by=[0, 1]).drop_duplicates().reset_index(drop=True)
+    st.write(df_to_join_1)
+    st.write(df_to_join_2)
+    df_info = pd.merge(df_to_join_1, df_to_join_2,  how='left', left_on=['Aktyw', 'Przych'], right_on = [0, 1])
+
+    # st.header('dane1')
+    # st.write(len(df[['Aktyw','Przych']]))
+    # st.write(len(new_df[[0,1]]))
+    # st.write(len(df_col_merged))
+    # st.write(df_col_merged)
     
     df_info["cluster2"] = df_info["cluster"].map({0: 'HIGHLAND', 1:'DODGE', 2:'ROGERS'}) 
     df_info["hrabstwo_to_num"] = df_info["Hrabstwo"].map({'HIGHLAND': 0, 'DODGE': 1, 'ROGERS':2}) 
-    st.write(df_info)
+    st.write(df_info["cluster2"], df_info["Hrabstwo"])
 
-    df_confusion = pd.crosstab(df_info["cluster2"], df_info["Hrabstwo"])
+    # df_confusion = pd.crosstab(df_info["cluster2"], df_info["Hrabstwo"])
+    df_confusion = pd.crosstab(df_info["cluster2"], df_info["Hrabstwo"], rownames=['Actual'], colnames=['Predicted'], margins=True)
 
-    st.write("df_confusion")
+    # st.write("df_confusion")
+    st.write("Confusion matrix")
     st.dataframe(df_confusion)
 
     accuracy_sc = accuracy_score(df_info["cluster2"], df_info["Hrabstwo"])
@@ -164,19 +170,19 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
     st.write(f'cosine_similarity: {cosine_sc}')
 
 """For 4 metrics"""
-st.header("euc")
-k_means_clustering(crim_lstat_array, k=3, repeats=10, dist="euc")
+st.header("euclidean")
+k_means_clustering(crim_lstat_array, k=3, repeats=20, dist="euc")
 plt.clf()
 
 st.header("l1")
-k_means_clustering(crim_lstat_array, k=3, repeats=10, dist="l1")
+k_means_clustering(crim_lstat_array, k=3, repeats=20, dist="l1")
 plt.clf()
 
 st.header("chebyshev")
-k_means_clustering(crim_lstat_array, k=3, repeats=10, dist="chebyshev")
+k_means_clustering(crim_lstat_array, k=3, repeats=20, dist="chebyshev")
 plt.clf()
 
-st.header("mahal 10")
+st.header("mahalanobis")
 data = np.array([df['Aktyw'],df['Przych']])
 covMatrix = np.cov(data,bias=True)
 st.write(covMatrix)
