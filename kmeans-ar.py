@@ -23,8 +23,8 @@ from scipy.spatial import distance
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics import silhouette_score
 
-url = 'IRISDAT.TXT'
-# url = 'INCOME.csv'
+# url = 'IRISDAT.TXT'
+url = 'arrhythmia_po_standaryzacji.csv'
 df = pd.read_csv(url, sep=',', comment='#') 
 
 all_res = []
@@ -34,12 +34,23 @@ print(f'Columns: {len(df.columns)}')
 # LISDLG,LISSZE,PLADLG,PLASZE,ODMIRYS
 df.head()
 
+# df['279'] = df['279'].astype(np.float64)
+
 column_list = df.columns
 for item in column_list:
+    st.write(df[item].dtype)
     print(item)
+st.write(len(column_list))
+st.write(df.dtypes)
 
-cols = ['LISDLG', 'LISSZE', 'PLADLG', 'PLASZE']
-crim_lstat_array = np.array(df[cols])
+
+
+cols2 = (df.columns).tolist()
+col_list_without_class = cols2[:-1]
+class_name = cols2[-1:][0]
+
+crim_lstat_array = np.array(df[col_list_without_class])
+
 
 def recalculate_clusters(X, centroids, k, dist):
     """ Recalculates the clusters """
@@ -126,7 +137,7 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
     st.subheader(f"Clusters")
     st.write(df1)
     st.subheader("Classes")
-    st.write(df['ODMIRYS'].value_counts()) 
+    st.write(df[class_name].value_counts()) 
 
     # st.header("Results")
     
@@ -141,42 +152,53 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
         new_df = pd.concat([new_df, df_with_cluster], axis=0)
         new_df.reset_index(drop=True)
     
-    df_to_join_1 = df.sort_values(by=cols).reset_index(drop=True)
-    df_to_join_2 = new_df.sort_values(by=[0, 1, 2, 3]).drop_duplicates().reset_index(drop=True)
-    # st.write(df_to_join_1)
-    # st.write(df_to_join_2)
-    df_info = pd.merge(df_to_join_1, df_to_join_2,  how='left', left_on=cols, right_on = [0, 1, 2, 3])
+    col_list_nr = []
+    for index, value in enumerate(col_list_without_class):
+        col_list_nr.append(index)
+    # st.subheader(col_list_nr)
 
-    # st.header('dane1')
-    # st.write(len(new_df[[0,1]]))
-    # st.write(len(df_col_merged))
-    # st.write(df_col_merged)
+    df_to_join_1 = df.sort_values(by=col_list_without_class).reset_index(drop=True)
+    df_to_join_2 = new_df.sort_values(by=col_list_nr).drop_duplicates().reset_index(drop=True)
     
-    df_info["cluster2"] = df_info["cluster"].map({0: 'SETOSA', 1:'VIRGINIC', 2:'VERSICOL'}) 
-    df_info["ODMIRYS_to_num"] = df_info["ODMIRYS"].map({'SETOSA': 0, 'VIRGINIC': 1, 'VERSICOL':2}) 
-    # st.write(df_info["cluster2"], df_info["ODMIRYS"])
 
-    # df_confusion = pd.crosstab(df_info["cluster2"], df_info["ODMIRYS"])
-    df_confusion = pd.crosstab(df_info["cluster2"], df_info["ODMIRYS"], rownames=['Actual'], colnames=['Predicted'], margins=True)
+    df_info = pd.merge(df_to_join_1, df_to_join_2,  how='left', left_on=col_list_without_class, right_on = col_list_nr)
+    
+    # # income
+    # df_info["cluster2"] = df_info["cluster"].map({0: 'SETOSA', 1:'VIRGINIC', 2:'VERSICOL'}) 
+    # df_info["class_to_num"] = df_info[class_name].map({'SETOSA': 0, 'VIRGINIC': 1, 'VERSICOL':2}) 
+    
+    # # iris
+    # df_info["cluster2"] = df_info["cluster"].map({0: 'HIGHLAND', 1:'DODGE', 2:'ROGERS'}) 
+    # df_info["class_to_num"] = df_info[class_name].map({'HIGHLAND': 0, 'DODGE': 1, 'ROGERS':2}) 
 
-    # st.write("df_confusion")
-    st.write("Confusion matrix")
-    st.dataframe(df_confusion)
+    #other
+    df_info["cluster2"] = df_info["cluster"]
+    df_info["class_to_num"] = df_info[class_name]
 
-    accuracy_sc = accuracy_score(df_info["cluster2"], df_info["ODMIRYS"])
+    # df_confusion = pd.crosstab(df_info["cluster2"], df_info[class_name], rownames=['Actual'], colnames=['Predicted'], margins=True)
+
+    # st.write("Confusion matrix")
+    # st.dataframe(df_confusion)
+
+    accuracy_sc = accuracy_score(df_info["cluster2"], df_info[class_name])
     st.write(f'accuracy_score: {accuracy_sc}')
 
-    jaccard_sc = jaccard_score(df_info["cluster2"], df_info["ODMIRYS"], average=None)
+    jaccard_sc = jaccard_score(df_info["cluster2"], df_info[class_name], average=None)
     st.write(f'jaccard_score: {jaccard_sc}')
 
-    silhouette_sc = silhouette_score(df_info[['LISDLG', 'LISSZE', 'PLADLG', 'PLASZE',"ODMIRYS_to_num"]], df_info["cluster"])
+    silhouette_sc_list = col_list_without_class + ["class_to_num"]
+
+    # st.subheader(silhouette_sc_list)
+
+    silhouette_sc = silhouette_score(df_info[silhouette_sc_list], df_info["cluster"])
     st.write(f'silhouette_sc: {silhouette_sc}')
     
-    cosine_sc = cosine_similarity(np.asmatrix(df_info["cluster"]), np.asmatrix(df_info["ODMIRYS_to_num"]))[0][0]
+    cosine_sc = cosine_similarity(np.asmatrix(df_info["cluster"]), np.asmatrix(df_info["class_to_num"]))[0][0]
     st.write(f'cosine_similarity: {cosine_sc}')
 
     
     res = pd.DataFrame([{'metrics':dist, 'accuracy_score':accuracy_sc, 'jaccard_score':jaccard_sc, 'silhouette_score':silhouette_sc, 'cosine_similarity':cosine_sc}])
+    # res = pd.DataFrame([{'metrics':dist, 'accuracy_score':accuracy_sc, 'jaccard_score':jaccard_sc, 'cosine_similarity':cosine_sc}])
     # st.write(res)
     all_res.append(res)
 
@@ -195,7 +217,12 @@ k_means_clustering(crim_lstat_array, k=3, repeats=20, dist="chebyshev")
 plt.clf()
 
 st.header("mahalanobis")
-data = np.array([df['LISDLG'],df['LISSZE'],df['PLADLG'],df['PLASZE']])
+
+list_for_data = []
+for col in col_list_without_class:
+    list_for_data.append(df[col])
+
+data = np.array(list_for_data)
 covMatrix = np.cov(data,bias=True)
 st.write(covMatrix)
 k_means_clustering(crim_lstat_array, k=3, repeats=10, dist="mahal")
