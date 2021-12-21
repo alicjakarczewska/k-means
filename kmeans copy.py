@@ -20,7 +20,6 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import jaccard_score
 from scipy.spatial import distance
 # distance.chebyshev([1, 0, 0], [0, 1, 0])
-from sklearn.metrics.pairwise import cosine_similarity
 
 # url = 'IRISDAT.TXT'
 url = 'INCOME.csv'
@@ -145,7 +144,6 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
     st.write(df_info)
     
     df_info["cluster2"] = df_info["cluster"].map({0: 'HIGHLAND', 1:'DODGE', 2:'ROGERS'}) 
-    df_info["hrabstwo_to_num"] = df_info["Hrabstwo"].map({'HIGHLAND': 0, 'DODGE': 1, 'ROGERS':2}) 
     st.write(df_info)
 
     df_confusion = pd.crosstab(df_info["cluster2"], df_info["Hrabstwo"])
@@ -158,30 +156,24 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
 
     jaccard_sc = jaccard_score(df_info["cluster2"], df_info["Hrabstwo"], average=None)
     st.write(f'jaccard_score: {jaccard_sc}')
-    
-    # cosine_sc = cosine_similarity(np.asmatrix([1,2,3]), np.asmatrix([4,5,6]))[0][0]
-    cosine_sc = cosine_similarity(np.asmatrix(df_info["cluster"]), np.asmatrix(df_info["hrabstwo_to_num"]))[0][0]
-    st.write(f'cosine_similarity: {cosine_sc}')
 
-"""For 4 metrics"""
-st.header("euc")
-k_means_clustering(crim_lstat_array, k=3, repeats=10, dist="euc")
+
+# st.header("euc")
+# k_means_clustering(crim_lstat_array, k=3, repeats=32, dist="euc")
+# plt.clf()
+# st.header("l1")
+# k_means_clustering(crim_lstat_array, k=3, repeats=32, dist="l1")
+# plt.clf()
+# st.header("chebyshev")
+# k_means_clustering(crim_lstat_array, k=3, repeats=32, dist="chebyshev")
 plt.clf()
+st.header("mahal")
 
-st.header("l1")
-k_means_clustering(crim_lstat_array, k=3, repeats=10, dist="l1")
-plt.clf()
-
-st.header("chebyshev")
-k_means_clustering(crim_lstat_array, k=3, repeats=10, dist="chebyshev")
-plt.clf()
-
-st.header("mahal 10")
 data = np.array([df['Aktyw'],df['Przych']])
 covMatrix = np.cov(data,bias=True)
 st.write(covMatrix)
 k_means_clustering(crim_lstat_array, k=3, repeats=10, dist="mahal")
-plt.clf()
+
 
 
 def sklearn_k_means(X, k=3, iterations=10):
@@ -255,29 +247,6 @@ def sklearn_k_means(X, k=3, iterations=10):
     st.write("fig2")
     st.write(fig2.figure)
 
-def elbow_plot(X, k=3, iterations=10):
-    plt.clf()
-
-    # "Elbow Plot" to demonstrate what is essentially the usefulness of number for k
-    # Calculate distortion (noise) for a range of number of cluster
-    distortions = []
-    for i in range(1, 11):
-        km = KMeans(
-            n_clusters=i, init='random',
-            n_init=10, max_iter=300,
-            tol=1e-04, random_state=0
-        )
-        km.fit(X)
-        distortions.append(km.inertia_)
-
-    # Plot k vs distortion
-    plt.plot(range(1, 11), distortions, marker='o')
-    plt.xlabel('Number of clusters')
-    fig2 = plt.ylabel('Distortion')
-    plt.show()
-    st.write("fig2")
-    st.write(fig2.figure)
-
 
 
 # plot 2-d with classes from df
@@ -290,5 +259,4 @@ st.write(fig1.figure)
 
 
 # sklearn_k_means(crim_lstat_array)
-elbow_plot(crim_lstat_array)
 
