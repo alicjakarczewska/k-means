@@ -27,21 +27,24 @@ from sklearn.metrics import silhouette_score
 url = 'arrhythmia_po_standaryzacji.csv'
 df = pd.read_csv(url, sep=',', comment='#') 
 
+# df = df.dropna()
+df = df.dropna(axis=1)
+
 all_res = []
 
 print(f'Rows: {len(df)}')
 print(f'Columns: {len(df.columns)}')
 # LISDLG,LISSZE,PLADLG,PLASZE,ODMIRYS
-df.head()
+# df.head()
 
 # df['279'] = df['279'].astype(np.float64)
 
-column_list = df.columns
-for item in column_list:
-    st.write(df[item].dtype)
-    print(item)
-st.write(len(column_list))
-st.write(df.dtypes)
+# column_list = df.columns
+# for item in column_list:
+#     st.write(df[item].dtype)
+#     print(item)
+# st.write(len(column_list))
+# st.write(df.dtypes)
 
 
 
@@ -137,7 +140,13 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
     st.subheader(f"Clusters")
     st.write(df1)
     st.subheader("Classes")
+
     st.write(df[class_name].value_counts()) 
+
+    st.subheader("Classes - data")
+    st.write(f'how many unique: {df[class_name].nunique()}')
+    st.write(f'how many non-null values: {df[class_name].count()}')
+    # st.write(f'what size: {df[class_name].size()}')
 
     # st.header("Results")
     
@@ -163,22 +172,32 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
 
     df_info = pd.merge(df_to_join_1, df_to_join_2,  how='left', left_on=col_list_without_class, right_on = col_list_nr)
     
-    # # income
-    # df_info["cluster2"] = df_info["cluster"].map({0: 'SETOSA', 1:'VIRGINIC', 2:'VERSICOL'}) 
-    # df_info["class_to_num"] = df_info[class_name].map({'SETOSA': 0, 'VIRGINIC': 1, 'VERSICOL':2}) 
+    # other
+    df_info["cluster2"] = df_info["cluster"].map({0: 1, 1:2, 2:3, 3:4,4:5,5:6,6:7,7:8,8:9,9:10,10:14,11:15,12:16}) 
+
+
+
+    df_info["class_to_num"] = df_info[class_name].map({1:0, 2:1, 3:2,4:3,5:4,6:5,7:6,8:7,9:8,10:9,14:10,15:11,16:12}) 
     
-    # # iris
-    # df_info["cluster2"] = df_info["cluster"].map({0: 'HIGHLAND', 1:'DODGE', 2:'ROGERS'}) 
-    # df_info["class_to_num"] = df_info[class_name].map({'HIGHLAND': 0, 'DODGE': 1, 'ROGERS':2}) 
 
-    #other
-    df_info["cluster2"] = df_info["cluster"]
-    df_info["class_to_num"] = df_info[class_name]
+    # df_info["cluster2"] = df_info["cluster2"].astype(np.float64)
 
-    # df_confusion = pd.crosstab(df_info["cluster2"], df_info[class_name], rownames=['Actual'], colnames=['Predicted'], margins=True)
+    # df_confusion = pd.crosstab(df_info["cluster2"], df_info[class_name], margins=True)
+    df_confusion = confusion_matrix(df_info["cluster2"], df_info[class_name])
 
-    # st.write("Confusion matrix")
-    # st.dataframe(df_confusion)
+    st.write("Confusion matrix")
+    st.dataframe(df_confusion)
+
+    df_confusion = confusion_matrix(df_info["cluster"], df_info["class_to_num"])
+
+    st.write("Confusion matrix2")
+    st.dataframe(df_confusion)
+
+    st.write(df_info["cluster2"].head())
+    st.write(df_info[class_name].head())
+
+    st.write(len(df_info["cluster2"]))
+    st.write(len(df_info[class_name]))
 
     accuracy_sc = accuracy_score(df_info["cluster2"], df_info[class_name])
     st.write(f'accuracy_score: {accuracy_sc}')
@@ -204,16 +223,17 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
 
 
 """For 4 metrics"""
+k_nr = 12
 st.header("euclidean")
-k_means_clustering(crim_lstat_array, k=3, repeats=20, dist="euc")
+k_means_clustering(crim_lstat_array, k=k_nr, repeats=40, dist="euc")
 plt.clf()
 
 st.header("l1")
-k_means_clustering(crim_lstat_array, k=3, repeats=20, dist="l1")
+k_means_clustering(crim_lstat_array, k=k_nr, repeats=20, dist="l1")
 plt.clf()
 
 st.header("chebyshev")
-k_means_clustering(crim_lstat_array, k=3, repeats=20, dist="chebyshev")
+k_means_clustering(crim_lstat_array, k=k_nr, repeats=20, dist="chebyshev")
 plt.clf()
 
 st.header("mahalanobis")
@@ -225,7 +245,7 @@ for col in col_list_without_class:
 data = np.array(list_for_data)
 covMatrix = np.cov(data,bias=True)
 st.write(covMatrix)
-k_means_clustering(crim_lstat_array, k=3, repeats=10, dist="mahal")
+k_means_clustering(crim_lstat_array, k=k_nr, repeats=10, dist="mahal")
 plt.clf()
 
 
@@ -300,23 +320,23 @@ def sklearn_k_means(X, k=3, iterations=10):
     st.write("fig2")
     st.write(fig2.figure)
 
-def elbow_plot(X, k=3, iterations=10):
+def elbow_plot(X, k=16, iterations=10):
     plt.clf()
 
     # "Elbow Plot" to demonstrate what is essentially the usefulness of number for k
     # Calculate distortion (noise) for a range of number of cluster
     distortions = []
-    for i in range(1, 11):
+    for i in range(1, 17):
         km = KMeans(
             n_clusters=i, init='random',
-            n_init=10, max_iter=300,
+            n_init=16, max_iter=300,
             tol=1e-04, random_state=0
         )
         km.fit(X)
         distortions.append(km.inertia_)
 
     # Plot k vs distortion
-    plt.plot(range(1, 11), distortions, marker='o')
+    plt.plot(range(1, 17), distortions, marker='o')
     plt.xlabel('Number of clusters')
     fig2 = plt.ylabel('Distortion')
     plt.show()
