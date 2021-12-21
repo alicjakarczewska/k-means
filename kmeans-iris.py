@@ -21,10 +21,13 @@ from sklearn.metrics import jaccard_score
 from scipy.spatial import distance
 # distance.chebyshev([1, 0, 0], [0, 1, 0])
 from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics import silhouette_score
 
 # url = 'IRISDAT.TXT'
 url = 'INCOME.csv'
 df = pd.read_csv(url, sep=',', comment='#') 
+
+all_res = []
 
 print(f'Rows: {len(df)}')
 print(f'Columns: {len(df.columns)}')
@@ -64,7 +67,8 @@ def recalculate_clusters(X, centroids, k, dist):
             # Set up list of chebyshev distance and iterate through
             chebyshev_dist = []
             for j in range(k):
-                chebyshev_dist.append(distance.chebyshev([data], [centroids[j]]))
+                # chebyshev_dist.append(distance.chebyshev([data], [centroids[j]]))
+                chebyshev_dist.append(np.max(np.abs(data - centroids[j])))
             # Append the cluster of data to the dictionary
             clusters[chebyshev_dist.index(min(chebyshev_dist))].append(data)
         if(dist == "mahal"):
@@ -164,30 +168,41 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
 
     jaccard_sc = jaccard_score(df_info["cluster2"], df_info["Hrabstwo"], average=None)
     st.write(f'jaccard_score: {jaccard_sc}')
+
+    silhouette_sc = silhouette_score(df_info[["Aktyw","Przych","hrabstwo_to_num"]], df_info["cluster"])
+    st.write(f'silhouette_sc: {silhouette_sc}')
     
-    # cosine_sc = cosine_similarity(np.asmatrix([1,2,3]), np.asmatrix([4,5,6]))[0][0]
     cosine_sc = cosine_similarity(np.asmatrix(df_info["cluster"]), np.asmatrix(df_info["hrabstwo_to_num"]))[0][0]
     st.write(f'cosine_similarity: {cosine_sc}')
+
+    
+    res = pd.DataFrame([{'metrics':dist, 'accuracy_score':accuracy_sc, 'jaccard_score':jaccard_sc, 'silhouette_score':silhouette_sc, 'cosine_similarity':cosine_sc}])
+    st.write(res)
+    all_res.append(res)
+
+
+# results_df = pd.DataFrame(columns=['distance','accuracy_score', 'jaccard_score', 'silhouette_sc', 'cosine_similarity'])
+# results_df= pd.DataFrame([{'distance':1, 'accuracy_score':1, 'jaccard_score':1, 'silhouette_sc':1, 'cosine_similarity':1}])
 
 """For 4 metrics"""
 st.header("euclidean")
 k_means_clustering(crim_lstat_array, k=3, repeats=20, dist="euc")
 plt.clf()
 
-st.header("l1")
-k_means_clustering(crim_lstat_array, k=3, repeats=20, dist="l1")
-plt.clf()
+# st.header("l1")
+# k_means_clustering(crim_lstat_array, k=3, repeats=20, dist="l1")
+# plt.clf()
 
 st.header("chebyshev")
 k_means_clustering(crim_lstat_array, k=3, repeats=20, dist="chebyshev")
 plt.clf()
 
-st.header("mahalanobis")
-data = np.array([df['Aktyw'],df['Przych']])
-covMatrix = np.cov(data,bias=True)
-st.write(covMatrix)
-k_means_clustering(crim_lstat_array, k=3, repeats=10, dist="mahal")
-plt.clf()
+# st.header("mahalanobis")
+# data = np.array([df['Aktyw'],df['Przych']])
+# covMatrix = np.cov(data,bias=True)
+# st.write(covMatrix)
+# k_means_clustering(crim_lstat_array, k=3, repeats=10, dist="mahal")
+# plt.clf()
 
 
 def sklearn_k_means(X, k=3, iterations=10):
@@ -298,3 +313,6 @@ st.write(fig1.figure)
 # sklearn_k_means(crim_lstat_array)
 elbow_plot(crim_lstat_array)
 
+
+df_res = pd.concat(all_res)
+st.write(df_res)

@@ -20,10 +20,14 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import jaccard_score
 from scipy.spatial import distance
 # distance.chebyshev([1, 0, 0], [0, 1, 0])
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics import silhouette_score
 
 # url = 'IRISDAT.TXT'
 url = 'INCOME.csv'
 df = pd.read_csv(url, sep=',', comment='#') 
+
+all_res = []
 
 print(f'Rows: {len(df)}')
 print(f'Columns: {len(df.columns)}')
@@ -63,7 +67,8 @@ def recalculate_clusters(X, centroids, k, dist):
             # Set up list of chebyshev distance and iterate through
             chebyshev_dist = []
             for j in range(k):
-                chebyshev_dist.append(distance.chebyshev([data], [centroids[j]]))
+                # chebyshev_dist.append(distance.chebyshev([data], [centroids[j]]))
+                chebyshev_dist.append(np.max(np.abs(data - centroids[j])))
             # Append the cluster of data to the dictionary
             clusters[chebyshev_dist.index(min(chebyshev_dist))].append(data)
         if(dist == "mahal"):
@@ -102,6 +107,7 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
     for i in range(k):
         # Sets up the centroids based on the data
         centroids[i] = X[i]
+        st.write(f"centroids: {centroids[i]}")
 
     # Outputs the recalculated clusters and centroids 
     st.subheader('first and last iteration plot')
@@ -121,7 +127,7 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
     st.subheader("Classes")
     st.write(df['Hrabstwo'].value_counts()) 
 
-    st.header("Dane")
+    st.header("Results")
     
     # st.write(df)
     new_df = pd.DataFrame()
@@ -133,22 +139,28 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
         
         new_df = pd.concat([new_df, df_with_cluster], axis=0)
         new_df.reset_index(drop=True)
-
-    # st.write(list(df.columns.values))
-    # st.write(list(new_df.columns.values))
-    # st.write(df)
     
-    df_with_info = pd.merge(df, new_df,  how='left', left_on=['Aktyw','Przych'], right_on = [0,1])
-    st.write(df_with_info)
-    df_info = df_with_info[["Hrabstwo","cluster"]]
-    st.write(df_info)
+    df_to_join_1 = df.sort_values(by=['Aktyw', 'Przych']).reset_index(drop=True)
+    df_to_join_2 = new_df.sort_values(by=[0, 1]).drop_duplicates().reset_index(drop=True)
+    st.write(df_to_join_1)
+    st.write(df_to_join_2)
+    df_info = pd.merge(df_to_join_1, df_to_join_2,  how='left', left_on=['Aktyw', 'Przych'], right_on = [0, 1])
+
+    # st.header('dane1')
+    # st.write(len(df[['Aktyw','Przych']]))
+    # st.write(len(new_df[[0,1]]))
+    # st.write(len(df_col_merged))
+    # st.write(df_col_merged)
     
     df_info["cluster2"] = df_info["cluster"].map({0: 'HIGHLAND', 1:'DODGE', 2:'ROGERS'}) 
-    st.write(df_info)
+    df_info["hrabstwo_to_num"] = df_info["Hrabstwo"].map({'HIGHLAND': 0, 'DODGE': 1, 'ROGERS':2}) 
+    st.write(df_info["cluster2"], df_info["Hrabstwo"])
 
-    df_confusion = pd.crosstab(df_info["cluster2"], df_info["Hrabstwo"])
+    # df_confusion = pd.crosstab(df_info["cluster2"], df_info["Hrabstwo"])
+    df_confusion = pd.crosstab(df_info["cluster2"], df_info["Hrabstwo"], rownames=['Actual'], colnames=['Predicted'], margins=True)
 
-    st.write("df_confusion")
+    # st.write("df_confusion")
+    st.write("Confusion matrix")
     st.dataframe(df_confusion)
 
     accuracy_sc = accuracy_score(df_info["cluster2"], df_info["Hrabstwo"])
@@ -157,23 +169,40 @@ def k_means_clustering(X, centroids={}, k=3, repeats=10, dist="euc"):
     jaccard_sc = jaccard_score(df_info["cluster2"], df_info["Hrabstwo"], average=None)
     st.write(f'jaccard_score: {jaccard_sc}')
 
+    silhouette_sc = silhouette_score(df_info[["Aktyw","Przych","hrabstwo_to_num"]], df_info["cluster"])
+    st.write(f'silhouette_sc: {silhouette_sc}')
+    
+    cosine_sc = cosine_similarity(np.asmatrix(df_info["cluster"]), np.asmatrix(df_info["hrabstwo_to_num"]))[0][0]
+    st.write(f'cosine_similarity: {cosine_sc}')
 
-# st.header("euc")
-# k_means_clustering(crim_lstat_array, k=3, repeats=32, dist="euc")
-# plt.clf()
-# st.header("l1")
-# k_means_clustering(crim_lstat_array, k=3, repeats=32, dist="l1")
-# plt.clf()
-# st.header("chebyshev")
-# k_means_clustering(crim_lstat_array, k=3, repeats=32, dist="chebyshev")
+    
+    res = pd.DataFrame([{'metrics':dist, 'accuracy_score':accuracy_sc, 'jaccard_score':jaccard_sc, 'silhouette_score':silhouette_sc, 'cosine_similarity':cosine_sc}])
+    st.write(res)
+    all_res.append(res)
+
+
+# results_df = pd.DataFrame(columns=['distance','accuracy_score', 'jaccard_score', 'silhouette_sc', 'cosine_similarity'])
+# results_df= pd.DataFrame([{'distance':1, 'accuracy_score':1, 'jaccard_score':1, 'silhouette_sc':1, 'cosine_similarity':1}])
+
+"""For 4 metrics"""
+st.header("euclidean")
+k_means_clustering(crim_lstat_array, k=3, repeats=20, dist="euc")
 plt.clf()
-st.header("mahal")
 
-data = np.array([df['Aktyw'],df['Przych']])
-covMatrix = np.cov(data,bias=True)
-st.write(covMatrix)
-k_means_clustering(crim_lstat_array, k=3, repeats=10, dist="mahal")
+# st.header("l1")
+# k_means_clustering(crim_lstat_array, k=3, repeats=20, dist="l1")
+# plt.clf()
 
+st.header("chebyshev")
+k_means_clustering(crim_lstat_array, k=3, repeats=20, dist="chebyshev")
+plt.clf()
+
+# st.header("mahalanobis")
+# data = np.array([df['Aktyw'],df['Przych']])
+# covMatrix = np.cov(data,bias=True)
+# st.write(covMatrix)
+# k_means_clustering(crim_lstat_array, k=3, repeats=10, dist="mahal")
+# plt.clf()
 
 
 def sklearn_k_means(X, k=3, iterations=10):
@@ -247,6 +276,29 @@ def sklearn_k_means(X, k=3, iterations=10):
     st.write("fig2")
     st.write(fig2.figure)
 
+def elbow_plot(X, k=3, iterations=10):
+    plt.clf()
+
+    # "Elbow Plot" to demonstrate what is essentially the usefulness of number for k
+    # Calculate distortion (noise) for a range of number of cluster
+    distortions = []
+    for i in range(1, 11):
+        km = KMeans(
+            n_clusters=i, init='random',
+            n_init=10, max_iter=300,
+            tol=1e-04, random_state=0
+        )
+        km.fit(X)
+        distortions.append(km.inertia_)
+
+    # Plot k vs distortion
+    plt.plot(range(1, 11), distortions, marker='o')
+    plt.xlabel('Number of clusters')
+    fig2 = plt.ylabel('Distortion')
+    plt.show()
+    st.write("fig2")
+    st.write(fig2.figure)
+
 
 
 # plot 2-d with classes from df
@@ -259,4 +311,8 @@ st.write(fig1.figure)
 
 
 # sklearn_k_means(crim_lstat_array)
+elbow_plot(crim_lstat_array)
 
+
+df_res = pd.concat(all_res)
+st.write(df_res)
